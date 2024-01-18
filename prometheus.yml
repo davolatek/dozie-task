@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'nodejs'
+    static_configs:
+      - targets: ['your_instance_ip:3000']  # Replace with Server IP

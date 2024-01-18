@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+    
+    environment {
+        NODEJS_HOME = tool 'Your_NodeJS_Installation_Label'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    // Use the NodeJS installation defined in the environment
+                    sh '${NODEJS_HOME}/bin/npm install'
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                // Use Ansible to deploy the application
+                script {
+                    sh 'ansible-playbook -i your_instance_ip, -u your_admin_user ansible/deploy.yml'
+                }
+            }
+        }
+    }
+}

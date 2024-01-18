@@ -1,0 +1,98 @@
+---
+- name: Deploy Node.js Application with Monitoring
+  hosts: your_instance_ip
+  become: yes
+  become_user: your_admin_user
+
+  tasks:
+    - name: Update package repositories
+      package:
+        name: '*'
+        state: latest
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Install Node.js and npm
+      package:
+        name:
+          - nodejs
+          - npm
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Install MongoDB
+      package:
+        name:
+          - mongodb-org
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Start and enable MongoDB service
+      systemd:
+        name: mongod
+        enabled: yes
+        state: started
+      become_user: root
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Clone the Node.js application from GitHub
+      git:
+        repo: https://github.com/your-repo/node-crud.git
+        dest: /home/{{ ansible_user }}/node-crud
+      become_user: "{{ ansible_user }}"  # Use the Ansible variable for the current user
+
+    - name: Install application dependencies
+      npm:
+        path: /home/{{ ansible_user }}/node-crud
+        global_command: false
+        production: true
+      become_user: "{{ ansible_user }}"
+
+    - name: Create a systemd service for the Node.js application
+      systemd:
+        name: node-crud
+        enabled: yes
+        state: started
+        user: "{{ ansible_user }}"
+        working_directory: /home/{{ ansible_user }}/node-crud
+        environment:
+          NODE_ENV: production
+        exec_start: /usr/bin/npm start
+      become_user: root
+
+    - name: Install Prometheus
+      package:
+        name:
+          - prometheus
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Copy Prometheus configuration
+      copy:
+        src: files/prometheus/prometheus.yml
+        dest: /etc/prometheus/prometheus.yml
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Restart Prometheus
+      systemd:
+        name: prometheus
+        state: restarted
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Install Grafana
+      package:
+        name:
+          - grafana
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Start Grafana service
+      systemd:
+        name: grafana-server
+        state: started
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
+
+    - name: Configure Grafana data source
+      uri:
+        url: http://localhost:3000/api/datasources
+        method: POST
+        user: admin
+        password: admin
+        body: '{"name":"Prometheus","type":"prometheus","url":"http://localhost:9090","access":"proxy","isDefault":true,"jsonData":{}}'
+        status_code: 200
+      when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
